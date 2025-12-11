@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body { @apply bg-white text-gray-900; }
+.container-rt { @apply max-w-7xl mx-auto px-3 md:px-4; }
+.card { @apply rounded-2xl border border-gray-200 bg-white shadow-lg; }
+.btn { @apply inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700; }
+.btn-ghost { @apply inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50; }
+.input, .textarea { @apply mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500; }
+.note { @apply text-sm text-gray-600; }
+.alert { @apply rounded-xl bg-green-50 text-green-800 px-3 py-2 text-sm; }
+.error { @apply text-sm text-red-600; }
+
+.section-header { @apply flex items-center justify-between mb-4; }
+.section-header h2 { @apply text-2xl font-semibold; }
+.section-accent { @apply h-1 w-16 rounded-md bg-brand-600/70; }
+
+.story-card { @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5; }
+.story-meta { @apply flex items-center justify-between text-sm text-gray-500; }
+
+.ad-col { @apply sticky top-20 space-y-4; }
+.ad-sponsor { @apply card p-4 bg-gradient-to-br from-amber-50 to-white; }
+.ad-sponsor .title { @apply font-semibold; }
+.ad-sponsor .perks { @apply mt-2 grid gap-1 text-sm text-gray-700; }
+.ribbon { @apply inline-block rounded-full bg-gray-900/90 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white; }
+.logo-dot { @apply grid place-items-center h-10 w-10 rounded-full bg-brand-600 text-white font-bold; }
+
+.hero-title { @apply text-3xl md:text-5xl font-extrabold leading-tight; }
+.hero-title-gradient { @apply bg-gradient-to-r from-brand-600 via-brand-400 to-brand-700 bg-clip-text text-transparent; }
+
+.cat-bar { @apply card p-4; }
+.cat-tabs { @apply flex flex-wrap gap-2; }
+.cat-tab { @apply inline-flex items-center rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50; }
+.cat-tab-active { @apply bg-brand-600 text-white border-transparent; }
+
+.google-btn { @apply inline-flex items-center gap-3 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50; }
+.google-g { width: 18px; height: 18px; }
+
+@media (min-width: 1024px) {
+  .home-grid { grid-template-columns: 240px minmax(0,1fr) 240px; }
+}
