@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
-import { supabase } from './lib/supabase'
 
 export type Role = 'guest' | 'user' | 'admin'
 export type User = { 
@@ -24,72 +23,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    checkAuth()
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        const userData = {
-          id: session.user.id,
-          email: session.user.email || '',
-          name: session.user.user_metadata?.full_name || 'User',
-          role: session.user.email === 'admin@rtc.com' ? 'admin' as Role : 'user' as Role,
-        }
-        setUser(userData)
-        localStorage.setItem('rtc_user', JSON.stringify(userData))
-      } else {
-        setUser(null)
+    const stored = localStorage.getItem('rtc_user')
+    if (stored) {
+      try {
+        setUser(JSON.parse(stored))
+      } catch {
         localStorage.removeItem('rtc_user')
       }
-    })
-
-    return () => subscription?.unsubscribe()
-  }, [])
-
-  async function checkAuth() {
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) {
-        const userData = {
-          id: session.user.id,
-          email: session.user.email || '',
-          name: session.user.user_metadata?.full_name || 'User',
-          role: session.user.email === 'admin@rtc.com' ? 'admin' as Role : 'user' as Role,
-        }
-        setUser(userData)
-        localStorage.setItem('rtc_user', JSON.stringify(userData))
-      }
-    } catch (error) {
-      console.error('Auth check failed:', error)
-    } finally {
-      setLoading(false)
     }
-  }
+    setLoading(false)
+  }, [])
 
   async function login(email: string, password: string) {
     try {
       setLoading(true)
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-
-      if (error) {
-        return { ok: false, error: error.message }
+      
+      if (!email || !password) {
+        return { ok: false, error: 'Email and password required' }
+      }
+      if (password.length < 6) {
+        return { ok: false, error: 'Password 6+ chars' }
       }
 
-      if (data.user) {
-        const userData = {
-          id: data.user.id,
-          email: data.user.email || '',
-          name: data.user.user_metadata?.full_name || 'User',
-          role: email === 'admin@rtc.com' ? 'admin' as Role : 'user' as Role,
-        }
-        setUser(userData)
-        localStorage.setItem('rtc_user', JSON.stringify(userData))
-        return { ok: true }
-      }
+      await new Promise(r => setTimeout(r, 800))
 
-      return { ok: false, error: 'Login failed' }
+      const userData: User = {
+        id: 'u' + Date.now(),
+        email: email,
+        name: email.split('@')[0],
+        role: email.toLowerCase() === 'admin@rtc.com' ? 'admin' : 'user',
+      }
+      
+      setUser(userData)
+      localStorage.setItem('rtc_user', JSON.stringify(userData))
+      return { ok: true }
     } catch (error: any) {
       return { ok: false, error: error.message }
     } finally {
@@ -100,33 +67,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function signup(email: string, password: string, name: string) {
     try {
       setLoading(true)
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: name,
-          },
-        },
-      })
-
-      if (error) {
-        return { ok: false, error: error.message }
+      
+      if (!email || !password || !name) {
+        return { ok: false, error: 'All fields required' }
+      }
+      if (password.length < 6) {
+        return { ok: false, error: 'Password 6+ chars' }
       }
 
-      if (data.user) {
-        const userData = {
-          id: data.user.id,
-          email: data.user.email || '',
-          name: name,
-          role: 'user' as Role,
-        }
-        setUser(userData)
-        localStorage.setItem('rtc_user', JSON.stringify(userData))
-        return { ok: true }
-      }
+      await new Promise(r => setTimeout(r, 800))
 
-      return { ok: false, error: 'Signup failed' }
+      const userData: User = {
+        id: 'u' + Date.now(),
+        email: email,
+        name: name,
+        role: email.toLowerCase() === 'admin@rtc.com' ? 'admin' : 'user',
+      }
+      
+      setUser(userData)
+      localStorage.setItem('rtc_user', JSON.stringify(userData))
+      return { ok: true }
     } catch (error: any) {
       return { ok: false, error: error.message }
     } finally {
@@ -135,13 +95,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function logout() {
-    try {
-      await supabase.auth.signOut()
-      setUser(null)
-      localStorage.removeItem('rtc_user')
-    } catch (error) {
-      console.error('Logout failed:', error)
-    }
+    setUser(null)
+    localStorage.removeItem('rtc_user')
   }
 
   return (
@@ -153,6 +108,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const c = useContext(Ctx)
-  if (!c) throw new Error('AuthProvider missing')
+  if (!c) throw new Error('useAuth error')
   return c
 }
