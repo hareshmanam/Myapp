@@ -1,81 +1,83 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect } from 'react'
+import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { auth } from './firebase'
 
-export type Role = 'guest' | 'user' | 'admin'
-
-export interface User {
+export type User = {
   id: string
   email: string
-  role: Role
+  name: string
+  role: 'user' | 'admin'
 }
 
-interface AuthContextType {
+type AuthContextType = {
   user: User | null
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<boolean>
   logout: () => Promise<void>
+  loading: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  // Generate proper UUID
-  function generateUUID() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0
-      const v = c === 'x' ? r : (r & 0x3 | 0x8)
-      return v.toString(16)
-    })
-  }
-
-  // Load user on mount
+  // Listen to Firebase auth changes
   useEffect(() => {
-    const stored = localStorage.getItem('rtc_user')
-    if (stored) {
-      try {
-        setUser(JSON.parse(stored))
-      } catch {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // User is logged in
+        const userData: User = {
+          id: firebaseUser.uid,
+          email: firebaseUser.email || '',
+          name: firebaseUser.displayName || 'User',
+          role: firebaseUser.email === 'admin@rtc.com' ? 'admin' : 'user',
+        }
+        setUser(userData)
+        localStorage.setItem('currentUser', JSON.stringify(userData))
+      } else {
+        // User is logged out
         setUser(null)
+        localStorage.removeItem('currentUser')
       }
-    }
+      setLoading(false)
+    })
+
+    return unsubscribe
   }, [])
 
-  async function login(email: string, password: string) {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 800))
-
-    email = email.toLowerCase().trim()
-
-    // Validate input
-    if (!email) throw new Error('Email required')
-    if (!password || password.length < 6) throw new Error('Password must be 6+ characters')
-
-    // Check if admin
-    const isAdmin = email === 'admin@rtc.com'
-
-    // Create or get user with proper UUID
-    const userId = generateUUID()  // Generate proper UUID instead of timestamp
-    
-    const user: User = {
-      id: userId,
-      email: email,
-      role: isAdmin ? 'admin' : 'user'
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const { signInWithEmailAndPassword } = await import('firebase/auth')
+      const userCredential = await signInWithEmailAndPassword(auth, email, password)
+      
+      const userData: User = {
+        id: userCredential.user.uid,
+        email: userCredential.user.email || '',
+        name: userCredential.user.displayName || 'User',
+        role: userCredential.user.email === 'admin@rtc.com' ? 'admin' : 'user',
+      }
+      setUser(userData)
+      localStorage.setItem('currentUser', JSON.stringify(userData))
+      return true
+    } catch (error) {
+      console.error('Login error:', error)
+      return false
     }
-
-    // Store in localStorage
-    localStorage.setItem('rtc_user', JSON.stringify(user))
-    setUser(user)
-
-    console.log('✅ Login successful:', { email, role: user.role })
   }
 
-  async function logout() {
-    localStorage.removeItem('rtc_user')
-    setUser(null)
+  const logout = async () => {
+    try {
+      await signOut(auth)
+      setUser(null)
+      localStorage.removeItem('currentUser')
+    } catch (error) {
+      console.error('Logout error:', error)
+    }
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   )
@@ -83,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext)
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useAuth must be used within AuthProvider')
   }
   return context
