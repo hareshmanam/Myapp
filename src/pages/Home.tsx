@@ -1,143 +1,305 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { useStories } from '../hooks/useStories'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../auth'
 
-const FREE_STORY_LIMIT = 4
+type Story = {
+  id: string
+  title: string
+  excerpt: string
+  views: number
+  category: string
+  image_url?: string
+  createdAt?: string
+  isFree?: boolean
+}
 
 export default function Home() {
-  const { stories, loading } = useStories()
+  const [stories, setStories] = useState<Story[]>([])
+  const [storiesByCategory, setStoriesByCategory] = useState<Record<string, Story[]>>({})
+  const [mostRecent, setMostRecent] = useState<Story[]>([])
+  const [mostPopular, setMostPopular] = useState<Story[]>([])
+  const [visibleStories, setVisibleStories] = useState<Story[]>([])
   const { user } = useAuth()
-  const navigate = useNavigate()
-  const [readCount, setReadCount] = useState(0)
+
+  const freeStoriesLimit = 4
 
   useEffect(() => {
-    const count = parseInt(localStorage.getItem('read_count') || '0')
-    setReadCount(count)
+    loadStories()
   }, [])
 
-  const categories = ['Inspirational Stories', 'Road Test Tips', 'Parking & Maneuvers']
-
-  const getStoriesByCategory = (category: string) => {
-    return stories.filter(s => s.category === category).slice(0, 6)
+  function loadStories() {
+    try {
+      const stored = localStorage.getItem('rtc_stories_v4')
+      if (stored) {
+        const data = JSON.parse(stored)
+        processStories(data)
+      } else {
+        processStories(getDefaultStories())
+      }
+    } catch {
+      processStories(getDefaultStories())
+    }
   }
 
-  if (loading) {
-    return (
-      <div className="container-rt py-12 text-center">
-        <div className="animate-pulse text-gray-600">Loading stories...</div>
-      </div>
+  function processStories(allStories: Story[]) {
+    setStories(allStories)
+
+    // Mark first 4 as free
+    const storiesWithFreeAccess = allStories.map((story, index) => ({
+      ...story,
+      isFree: index < freeStoriesLimit,
+    }))
+
+    // Group by category
+    const grouped = storiesWithFreeAccess.reduce((acc: Record<string, Story[]>, story) => {
+      const cat = story.category || 'Other'
+      if (!acc[cat]) acc[cat] = []
+      acc[cat].push(story)
+      return acc
+    }, {})
+    setStoriesByCategory(grouped)
+
+    // Most recent (by createdAt)
+    const recent = [...storiesWithFreeAccess].sort(
+      (a, b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()
     )
+    setMostRecent(recent)
+
+    // Most popular (by views)
+    const popular = [...storiesWithFreeAccess].sort((a, b) => b.views - a.views)
+    setMostPopular(popular)
+
+    // First 4 stories visible (or based on user access)
+    setVisibleStories(storiesWithFreeAccess.slice(0, freeStoriesLimit))
   }
+
+  function getDefaultStories(): Story[] {
+    return [
+      {
+        id: '1',
+        title: 'My First Road Test Experience',
+        excerpt: 'Learn from my journey taking the road test for the first time',
+        views: 245,
+        category: 'Inspirational Stories',
+        image_url: 'https://images.unsplash.com/photo-1552820728-8ac41f1ce891?w=500',
+        createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        id: '2',
+        title: 'Parallel Parking Tips & Tricks',
+        excerpt: 'Master parallel parking with these proven techniques',
+        views: 389,
+        category: 'Parking & Maneuvers',
+        image_url: 'https://images.unsplash.com/photo-1489824904134-891ab64532f1?w=500',
+        createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        id: '3',
+        title: 'Highway Driving for Beginners',
+        excerpt: 'Everything you need to know about highway safety',
+        views: 167,
+        category: 'Road Test Tips',
+        image_url: 'https://images.unsplash.com/photo-1453614512568-c4024d13c247?w=500',
+        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        id: '4',
+        title: 'Overcoming Road Test Anxiety',
+        excerpt: 'Mental techniques to pass your test with confidence',
+        views: 403,
+        category: 'Inspirational Stories',
+        image_url: 'https://images.unsplash.com/photo-1488644531892-75574b3fc6f1?w=500',
+        createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        id: '5',
+        title: '3-Point Turn Mastery',
+        excerpt: 'Perfect your three-point turn in 5 minutes',
+        views: 156,
+        category: 'Parking & Maneuvers',
+        image_url: 'https://images.unsplash.com/photo-1552820728-8ac41f1ce891?w=500',
+        createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        id: '6',
+        title: 'Night Driving Safety Guide',
+        excerpt: 'Stay safe when driving in low light conditions',
+        views: 234,
+        category: 'Road Test Tips',
+        image_url: 'https://images.unsplash.com/photo-1489824904134-891ab64532f1?w=500',
+        createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+    ]
+  }
+
+  const canReadMore = user !== null
 
   return (
-    <main className="container-rt py-8 space-y-12">
-      <section className="card p-8 md:p-10 bg-gradient-to-br from-brand-50 to-white">
-        <h1 className="text-3xl md:text-5xl font-extrabold leading-tight">
-          <span className="bg-gradient-to-r from-brand-600 via-brand-400 to-brand-700 bg-clip-text text-transparent">
-            Welcome to On My Way to......
-          </span>
-        </h1>
-        <p className="mt-3 text-gray-700 text-lg">
-          Stories, tips, and real journeys to help you pass with confidence
-        </p>
+    <div className="bg-gray-50">
+      {/* Hero Section */}
+      <section className="bg-blue-50 py-16 mb-8">
+        <div className="container-rt">
+          <h1 className="text-4xl md:text-5xl font-bold text-blue-600 mb-4">
+            Welcome to On My Way to...
+          </h1>
+          <p className="text-lg text-gray-700">
+            Stories, tips, and real journeys to help you pass with confidence
+          </p>
+        </div>
       </section>
 
-      {!user && (
-        <div className="card p-6 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <h3 className="text-lg font-semibold text-amber-900">🔒 Want to read more stories?</h3>
-              <p className="text-amber-800 text-sm mt-1">
-                Sign up to access all {stories.length} stories and unlock exclusive coupons!
-              </p>
-            </div>
-            <button onClick={() => navigate('/login')} className="btn">Sign Up / Login</button>
+      {/* CTA Box for Login */}
+      {!canReadMore && (
+        <section className="container-rt mb-8">
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded">
+            <h3 className="text-lg font-bold text-yellow-800 mb-2">🔒 Want to read more stories?</h3>
+            <p className="text-yellow-700 mb-4">
+              Sign up to access all stories and unlock exclusive coupons!
+            </p>
+            <Link to="/login" className="bg-blue-600 text-white px-6 py-2 rounded font-bold hover:bg-blue-700">
+              Sign Up / Login
+            </Link>
           </div>
-        </div>
+        </section>
       )}
 
-      {user && (
-        <div className="card p-6 bg-gradient-to-br from-green-50 to-emerald-50">
-          <h3 className="text-lg font-semibold mb-2">📖 Reading Progress</h3>
-          <p className="text-sm text-gray-700 mb-3">
-            Read 20 stories to unlock 15% OFF coupon at Local Eats!
-          </p>
-          <div className="w-full bg-gray-200 rounded-full h-3">
-            <div
-              className="bg-green-600 h-3 rounded-full transition-all"
-              style={{ width: `${Math.min(100, (readCount / 20) * 100)}%` }}
-            />
-          </div>
-          <p className="text-sm text-gray-600 mt-2">{readCount}/20 stories read</p>
-          {readCount >= 20 && (
-            <div className="mt-3 p-3 bg-green-100 border border-green-300 rounded-lg">
-              <p className="font-semibold text-green-900">
-                🎉 Coupon Code: <span className="text-xl">UNLOCK15</span>
-              </p>
-            </div>
-          )}
+      {/* Stories Grid - Visible Stories */}
+      <section className="container-rt mb-12">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold">Featured Stories</h2>
+          <Link to="/stories" className="text-blue-600 hover:text-blue-700 font-bold">
+            📚 View All Stories
+          </Link>
         </div>
-      )}
 
-      {/* Stories by Category */}
-      {categories.map(category => {
-        const categoryStories = getStoriesByCategory(category)
-        return categoryStories.length > 0 ? (
-          <section key={category}>
-            <div className="flex items-center gap-3 mb-4">
-              <span className="h-1 w-16 rounded bg-brand-600"></span>
-              <h2 className="text-2xl font-semibold">{category}</h2>
-            </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {categoryStories.map(story => (
-                <div key={story.id} className="card p-5 hover:shadow-lg transition-shadow">
-                  {story.image_url && (
-                    <img src={story.image_url} alt={story.title} className="w-full h-48 object-cover rounded-lg mb-3" />
-                  )}
-                  <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
-                    <span>👁️ {story.views} views</span>
-                    <span>•</span>
-                    <span>📅 {new Date(story.createdAt).toLocaleDateString()}</span>
-                  </div>
-                  <h3 className="text-lg font-semibold mb-2">{story.title}</h3>
-                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">{story.excerpt}</p>
-                  <button
-                    onClick={() => {
-                      if (!user) {
-                        navigate('/login')
-                      } else {
-                        navigate(`/story/${story.id}`)
-                      }
-                    }}
-                    className="btn w-full"
-                  >
-                    {user ? 'Read Story' : 'Login to Read'}
-                  </button>
-                </div>
-              ))}
-            </div>
-            <div className="mt-6 text-center">
-              <button
-                onClick={() => navigate('/stories?category=' + encodeURIComponent(category))}
-                className="btn-ghost text-lg"
+        {visibleStories.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {visibleStories.map((story) => (
+              <Link
+                key={story.id}
+                to={`/story/${story.id}`}
+                className="bg-white rounded-lg shadow hover:shadow-lg transition overflow-hidden"
               >
-                Read More Stories →
-              </button>
-            </div>
-          </section>
-        ) : null
-      })}
+                {story.image_url && (
+                  <img
+                    src={story.image_url}
+                    alt={story.title}
+                    className="w-full h-40 object-cover"
+                  />
+                )}
+                <div className="p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                      {story.category}
+                    </span>
+                    {!story.isFree && !canReadMore && (
+                      <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">
+                        🔒 Unlock
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="font-bold text-lg text-gray-900 mb-2">
+                    {story.title}
+                  </h3>
+                  <p className="text-gray-600 text-sm mb-3">
+                    {story.excerpt}
+                  </p>
+                  <div className="text-xs text-gray-500">
+                    👁 {story.views} views
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-600">No stories available</p>
+        )}
+      </section>
 
-      {/* View All Stories Button */}
-      <div className="text-center py-6">
-        <button
-          onClick={() => navigate('/stories')}
-          className="btn px-8 py-3 text-lg"
-        >
-          📚 View All Stories
-        </button>
-      </div>
-    </main>
+      {/* Most Recent Section */}
+      <section className="container-rt mb-12">
+        <h2 className="text-2xl font-bold mb-6">Most Recent</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {mostRecent.slice(0, 3).map((story) => (
+            <Link
+              key={story.id}
+              to={`/story/${story.id}`}
+              className="bg-white p-4 rounded-lg shadow hover:shadow-lg transition"
+            >
+              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                {story.category}
+              </span>
+              <h3 className="font-bold text-lg mt-2 mb-2">{story.title}</h3>
+              <p className="text-gray-600 text-sm">{story.excerpt}</p>
+              <div className="text-xs text-gray-500 mt-3">
+                👁 {story.views} views
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Most Popular Section */}
+      <section className="container-rt mb-12">
+        <h2 className="text-2xl font-bold mb-6">Most Popular</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {mostPopular.slice(0, 3).map((story) => (
+            <Link
+              key={story.id}
+              to={`/story/${story.id}`}
+              className="bg-white p-4 rounded-lg shadow hover:shadow-lg transition"
+            >
+              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                {story.category}
+              </span>
+              <h3 className="font-bold text-lg mt-2 mb-2">{story.title}</h3>
+              <p className="text-gray-600 text-sm">{story.excerpt}</p>
+              <div className="text-xs text-gray-500 mt-3">
+                👁 {story.views} views
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Categories Section */}
+      <section className="container-rt mb-12">
+        <h2 className="text-2xl font-bold mb-6">Browse by Category</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {Object.entries(storiesByCategory).map(([category, catStories]) => (
+            <div key={category} className="bg-white p-6 rounded-lg shadow">
+              <h3 className="font-bold text-lg mb-3">{category}</h3>
+              <p className="text-gray-600 text-sm mb-4">
+                {catStories.length} stories
+              </p>
+              <Link
+                to="/stories"
+                className="text-blue-600 hover:text-blue-700 font-bold text-sm"
+              >
+                Explore →
+              </Link>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      {!canReadMore && (
+        <section className="bg-blue-600 text-white py-12 mb-8">
+          <div className="container-rt text-center">
+            <h2 className="text-3xl font-bold mb-4">Ready to unlock more stories?</h2>
+            <p className="text-lg text-blue-100 mb-6">
+              Sign up today and get access to all stories and exclusive coupons!
+            </p>
+            <Link
+              to="/login"
+              className="bg-white text-blue-600 px-8 py-3 rounded-lg font-bold hover:bg-gray-100 inline-block"
+            >
+              Sign Up Now
+            </Link>
+          </div>
+        </section>
+      )}
+    </div>
   )
 }

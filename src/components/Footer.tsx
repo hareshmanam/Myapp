@@ -26,7 +26,7 @@ export default function Footer() {
                 className="text-gray-400 hover:text-white transition text-xl"
                 aria-label="LinkedIn"
               >
-                in
+        
               </a>
             </div>
           </div>
@@ -37,13 +37,13 @@ export default function Footer() {
             <nav className="space-y-3">
               <Link to="/about" className="text-gray-300 hover:text-white transition text-sm">
                 About Us
-              </Link>
+              </Link><br/>
               <Link to="#" className="text-gray-300 hover:text-white transition text-sm">
                 Services
-              </Link>
+              </Link><br/>
               <Link to="#" className="text-gray-300 hover:text-white transition text-sm">
                 Drive With Us
-              </Link>
+              </Link><br/>
               <Link to="/contact" className="text-gray-300 hover:text-white transition text-sm">
                 Contact
               </Link>

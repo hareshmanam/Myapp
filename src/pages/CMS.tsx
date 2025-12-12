@@ -1,522 +1,260 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth'
-import type { Story } from '../stories'
+import { useNavigate } from 'react-router-dom'
 
-type Ad = {
-  id: string
+type Story = {
+  id?: string
   title: string
-  description: string
-  link_url: string
-  button_text: string
+  excerpt: string
+  content: string
+  video_url: string
+  image_url: string
+  views: number
+  category: string
+  status: 'pending' | 'approved' | 'rejected'
+  author_name: string
+  author_email: string
+  createdAt?: string
+}
+
+type RestaurantAd = {
+  id: string
+  restaurant_name: string
+  menu_link: string
+  address: string
+  offer: string
+  content: string
   is_active: boolean
 }
 
 export default function CMS() {
   const { user } = useAuth()
-  const nav = useNavigate()
-  const [tab, setTab] = useState<'stories' | 'create-story' | 'ads'>('stories')
+  const navigate = useNavigate()
+  const [activeTab, setActiveTab] = useState<'stories' | 'ads'>('stories')
   const [stories, setStories] = useState<Story[]>([])
-  const [ads, setAds] = useState<Ad[]>([])
-  const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
-
-  // Story form state
-  const [newStory, setNewStory] = useState({
-    title: '',
-    excerpt: '',
-    content: '',
-    category: 'Inspirational Stories',
-    link_url: '',
-    video_url: '',
-  })
-
-  // Ad form state
-  const [editingAd, setEditingAd] = useState<Ad | null>(null)
-  const [adForm, setAdForm] = useState({
-    title: '',
-    description: '',
-    link_url: '',
-    button_text: 'Learn More',
-  })
+  const [ads, setAds] = useState<RestaurantAd[]>([])
+  const [editingStory, setEditingStory] = useState<Story | null>(null)
+  const [editingAd, setEditingAd] = useState<RestaurantAd | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!user || user.role !== 'admin') {
-      nav('/login', { state: { next: '/cms' } })
-      return
+      navigate('/')
+    } else {
+      loadData()
     }
-    loadStories()
-    loadAds()
-  }, [user, nav])
+  }, [user, navigate])
 
-  // Load stories from localStorage
-  const loadStories = () => {
-    try {
-      const stored = localStorage.getItem('rtc_stories_v4')
-      if (stored) {
-        setStories(JSON.parse(stored))
+  function loadData() {
+    setLoading(true)
+    
+    // Load stories
+    const storedStories = localStorage.getItem('rtc_stories_v4')
+    if (storedStories) {
+      try {
+        setStories(JSON.parse(storedStories))
+      } catch {
+        setStories([])
       }
-    } catch (e) {
-      console.error('Error loading stories:', e)
     }
-  }
 
-  // Load ads from localStorage
-  const loadAds = () => {
-    try {
-      const stored = localStorage.getItem('rtc_ads')
-      if (stored) {
-        setAds(JSON.parse(stored))
-      } else {
-        const defaultAds: Ad[] = [
-          { id: '1', title: '', description: '', link_url: '', button_text: 'Learn More', is_active: false },
-          { id: '2', title: '', description: '', link_url: '', button_text: 'Learn More', is_active: false },
-          { id: '3', title: '', description: '', link_url: '', button_text: 'Learn More', is_active: false },
-        ]
-        setAds(defaultAds)
+    // Load ads
+    const storedAds = localStorage.getItem('rtc_ads_full')
+    if (storedAds) {
+      try {
+        setAds(JSON.parse(storedAds))
+      } catch {
+        setAds(getDefaultAds())
       }
-    } catch (e) {
-      console.error('Error loading ads:', e)
+    } else {
+      setAds(getDefaultAds())
+    }
+    
+    setLoading(false)
+  }
+
+  function getDefaultAds(): RestaurantAd[] {
+    return [
+      { id: '1', restaurant_name: 'The Driving Diner', menu_link: 'https://example.com/menu1', address: '123 Main St, Downtown', offer: '20% OFF for New Drivers', content: 'Perfect place to relax after your driving lessons.', is_active: true },
+      { id: '2', restaurant_name: 'Roadside Cafe', menu_link: 'https://example.com/menu2', address: '456 Highway Ave, North Side', offer: 'Free Coffee with Any Meal', content: 'Cozy cafe with great views.', is_active: true },
+      { id: '3', restaurant_name: 'Pizza Palace', menu_link: 'https://example.com/menu3', address: '789 Oak Road, Central', offer: 'Buy 1 Get 1 Free Pizza', content: 'Fresh, delicious pizza made daily.', is_active: true },
+      { id: '4', restaurant_name: 'Burger Blast', menu_link: 'https://example.com/menu4', address: '321 Elm Street, Westside', offer: '15% Discount on Total Bill', content: 'Authentic burgers and shakes.', is_active: true },
+      { id: '5', restaurant_name: 'Sushi Express', menu_link: 'https://example.com/menu5', address: '654 Pine Lane, Midtown', offer: 'Free Appetizer with Purchase', content: 'Fresh sushi and Japanese cuisine.', is_active: true },
+      { id: '6', restaurant_name: 'Taco Paradise', menu_link: 'https://example.com/menu6', address: '987 Cedar Court, South Bay', offer: 'Happy Hour 4-6 PM Daily', content: 'Authentic Mexican flavors.', is_active: true },
+      { id: '7', restaurant_name: 'Steak House Prime', menu_link: 'https://example.com/menu7', address: '111 Maple Road, Premium District', offer: 'Complimentary Dessert', content: 'Fine dining experience.', is_active: true },
+      { id: '8', restaurant_name: 'Pasta Perfetto', menu_link: 'https://example.com/menu8', address: '222 Birch Avenue, Italian Quarter', offer: 'Family Bundle Deal - Save 25%', content: 'Homemade Italian pasta.', is_active: true },
+      { id: '9', restaurant_name: 'Organic Greens', menu_link: 'https://example.com/menu9', address: '333 Spruce Street, Health District', offer: '10% Off First Order', content: 'Farm-to-table organic cuisine.', is_active: true },
+    ]
+  }
+
+  const saveStory = (story: Story) => {
+    const newStories = story.id
+      ? stories.map(s => s.id === story.id ? story : s)
+      : [...stories, { ...story, id: Date.now().toString(), createdAt: new Date().toISOString() }]
+    
+    setStories(newStories)
+    localStorage.setItem('rtc_stories_v4', JSON.stringify(newStories))
+    setEditingStory(null)
+    alert('✅ Story saved!')
+  }
+
+  const deleteStory = (id?: string) => {
+    if (!id) return
+    if (window.confirm('Delete this story?')) {
+      const newStories = stories.filter(s => s.id !== id)
+      setStories(newStories)
+      localStorage.setItem('rtc_stories_v4', JSON.stringify(newStories))
+      alert('✅ Story deleted!')
     }
   }
 
-  // Create new story
-  const handleCreateStory = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newStory.title || !newStory.content) {
-      setMessage('Please fill in title and content')
-      return
-    }
-
-    try {
-      setLoading(true)
-      const story: Story = {
-        id: 'story-' + Date.now(),
-        title: newStory.title,
-        excerpt: newStory.excerpt || newStory.content.slice(0, 120) + '...',
-        content: newStory.content,
-        views: 0,
-        likes: 0,
-        createdAt: new Date().toISOString(),
-        category: newStory.category,
-        link_url: newStory.link_url || undefined,
-        video_url: newStory.video_url || undefined,
-      }
-
-      const updatedStories = [story, ...stories]
-      localStorage.setItem('rtc_stories_v4', JSON.stringify(updatedStories))
-      setStories(updatedStories)
-
-      setMessage('✓ Story created successfully!')
-      setNewStory({ title: '', excerpt: '', content: '', category: 'Inspirational Stories', link_url: '', video_url: '' })
-      setTab('stories')
-
-      setTimeout(() => setMessage(''), 3000)
-    } catch (error: any) {
-      setMessage('Error: ' + error.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Delete story
-  const handleDeleteStory = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this story?')) {
-      const updated = stories.filter(s => s.id !== id)
-      localStorage.setItem('rtc_stories_v4', JSON.stringify(updated))
-      setStories(updated)
-      setMessage('✓ Story deleted!')
-      setTimeout(() => setMessage(''), 3000)
-    }
-  }
-
-  // Save ad
-  const handleSaveAd = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!editingAd) return
-
-    if (!adForm.title) {
-      setMessage('Please enter an ad title')
-      return
-    }
-
-    const updatedAds = ads.map(a =>
-      a.id === editingAd.id
-        ? {
-            ...a,
-            title: adForm.title,
-            description: adForm.description,
-            link_url: adForm.link_url,
-            button_text: adForm.button_text,
-            is_active: true,
-          }
-        : a
-    )
-
-    localStorage.setItem('rtc_ads', JSON.stringify(updatedAds))
-    setAds(updatedAds)
+  const saveAd = (ad: RestaurantAd) => {
+    const newAds = ads.map(a => a.id === ad.id ? ad : a)
+    setAds(newAds)
+    localStorage.setItem('rtc_ads_full', JSON.stringify(newAds))
     setEditingAd(null)
-    setAdForm({ title: '', description: '', link_url: '', button_text: 'Learn More' })
-    setMessage('✓ Ad updated!')
-    setTimeout(() => setMessage(''), 3000)
+    alert('✅ Ad saved!')
   }
 
-  // Toggle ad active/inactive
-  const toggleAd = (id: string) => {
-    const updatedAds = ads.map(a =>
-      a.id === id ? { ...a, is_active: !a.is_active } : a
-    )
-    localStorage.setItem('rtc_ads', JSON.stringify(updatedAds))
-    setAds(updatedAds)
+  const saveAllAds = () => {
+    localStorage.setItem('rtc_ads_full', JSON.stringify(ads))
+    alert('✅ All ads saved!')
   }
 
-  // Clear ad
-  const handleClearAd = (id: string) => {
-    if (window.confirm('Clear this ad?')) {
-      const updatedAds = ads.map(a =>
-        a.id === id
-          ? { id: a.id, title: '', description: '', link_url: '', button_text: 'Learn More', is_active: false }
-          : a
-      )
-      localStorage.setItem('rtc_ads', JSON.stringify(updatedAds))
-      setAds(updatedAds)
-      setMessage('✓ Ad cleared!')
-      setTimeout(() => setMessage(''), 3000)
-    }
+  const toggleAdActive = (id: string) => {
+    setAds(ads.map(a => a.id === id ? { ...a, is_active: !a.is_active } : a))
   }
 
   if (!user || user.role !== 'admin') {
-    return null
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-red-600 mb-4">Access Denied</h1>
+          <p className="text-gray-600">Admin only</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center"><p className="text-xl">Loading...</p></div>
   }
 
   return (
-    <main className="container-rt py-8">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Admin CMS Dashboard</h1>
-        <p className="text-gray-600">Welcome back, {user.name}! Manage your content here.</p>
-      </div>
+    <div className="bg-gray-50 min-h-screen py-8">
+      <div className="container-rt">
+        <h1 className="text-4xl font-bold mb-8">⚙️ CMS Dashboard</h1>
 
-      {/* Success/Error Message */}
-      {message && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-          <p className="text-green-700 text-sm">{message}</p>
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div className="card mb-6">
-        <div className="flex border-b overflow-x-auto">
-          <button
-            onClick={() => setTab('stories')}
-            className={`px-6 py-4 font-medium border-b-2 transition-colors whitespace-nowrap ${
-              tab === 'stories'
-                ? 'border-brand-600 text-brand-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-            }`}
-          >
+        {/* Tabs */}
+        <div className="flex gap-4 mb-8 border-b border-gray-300">
+          <button onClick={() => setActiveTab('stories')} className={`px-6 py-3 font-bold ${activeTab === 'stories' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}>
             📚 Stories ({stories.length})
           </button>
-          <button
-            onClick={() => setTab('create-story')}
-            className={`px-6 py-4 font-medium border-b-2 transition-colors whitespace-nowrap ${
-              tab === 'create-story'
-                ? 'border-brand-600 text-brand-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            ✍️ Create Story
-          </button>
-          <button
-            onClick={() => setTab('ads')}
-            className={`px-6 py-4 font-medium border-b-2 transition-colors whitespace-nowrap ${
-              tab === 'ads'
-                ? 'border-brand-600 text-brand-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            📢 Manage Ads
+          <button onClick={() => setActiveTab('ads')} className={`px-6 py-3 font-bold ${activeTab === 'ads' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}>
+            🍽️ Restaurant Ads ({ads.length})
           </button>
         </div>
 
-        {/* Stories Tab */}
-        {tab === 'stories' && (
-          <div className="p-6">
-            <h2 className="text-2xl font-semibold mb-4">All Stories</h2>
-            {stories.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-gray-600">No stories yet. Create one to get started!</p>
+        {/* STORIES TAB */}
+        {activeTab === 'stories' && (
+          <div>
+            <button onClick={() => setEditingStory({ title: '', excerpt: '', content: '', video_url: '', image_url: '', views: 0, category: 'Inspirational Stories', status: 'approved', author_name: 'Admin', author_email: user?.email || '' })} className="bg-blue-600 text-white px-6 py-2 rounded font-bold hover:bg-blue-700 mb-6">
+              + Add Story
+            </button>
+
+            {editingStory && (
+              <div className="bg-white p-6 rounded-lg shadow mb-6 border-2 border-blue-500">
+                <h2 className="text-2xl font-bold mb-4">{editingStory.id ? 'Edit Story' : 'Add New Story'}</h2>
+                <div className="space-y-4">
+                  <input type="text" placeholder="Title" value={editingStory.title} onChange={(e) => setEditingStory({ ...editingStory, title: e.target.value })} className="w-full border border-gray-300 p-2 rounded" />
+                  <input type="text" placeholder="Excerpt" value={editingStory.excerpt} onChange={(e) => setEditingStory({ ...editingStory, excerpt: e.target.value })} className="w-full border border-gray-300 p-2 rounded" />
+                  <textarea placeholder="Content" value={editingStory.content} onChange={(e) => setEditingStory({ ...editingStory, content: e.target.value })} className="w-full border border-gray-300 p-2 rounded" rows={5} />
+                  <input type="text" placeholder="Image URL" value={editingStory.image_url} onChange={(e) => setEditingStory({ ...editingStory, image_url: e.target.value })} className="w-full border border-gray-300 p-2 rounded" />
+                  <input type="text" placeholder="Video URL" value={editingStory.video_url} onChange={(e) => setEditingStory({ ...editingStory, video_url: e.target.value })} className="w-full border border-gray-300 p-2 rounded" />
+                  <select value={editingStory.category} onChange={(e) => setEditingStory({ ...editingStory, category: e.target.value })} className="w-full border border-gray-300 p-2 rounded">
+                    <option>Inspirational Stories</option>
+                    <option>Parking & Maneuvers</option>
+                    <option>Road Test Tips</option>
+                  </select>
+                  <select value={editingStory.status} onChange={(e) => setEditingStory({ ...editingStory, status: e.target.value as any })} className="w-full border border-gray-300 p-2 rounded">
+                    <option value="pending">⏳ Pending Review</option>
+                    <option value="approved">✅ Approved</option>
+                    <option value="rejected">❌ Rejected</option>
+                  </select>
+                  <div className="flex gap-2">
+                    <button onClick={() => saveStory(editingStory)} className="bg-green-600 text-white px-4 py-2 rounded font-bold hover:bg-green-700">Save Story</button>
+                    <button onClick={() => setEditingStory(null)} className="bg-gray-400 text-white px-4 py-2 rounded font-bold hover:bg-gray-500">Cancel</button>
+                  </div>
+                </div>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {stories.map(story => (
-                  <div key={story.id} className="card p-4 hover:shadow-lg transition-shadow">
-                    <div className="flex items-start justify-between">
+            )}
+
+            <div className="space-y-4">
+              {stories.length === 0 ? (
+                <div className="bg-gray-100 p-8 rounded text-center text-gray-600">No stories yet.</div>
+              ) : (
+                stories.map((story) => (
+                  <div key={story.id} className="bg-white p-4 rounded-lg shadow">
+                    <div className="flex justify-between items-start">
                       <div className="flex-1">
-                        <h3 className="font-semibold text-lg mb-1">{story.title}</h3>
-                        <p className="text-sm text-gray-600 mb-2">{story.excerpt}</p>
-                        <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
-                          <span>👁️ {story.views} views</span>
-                          {story.category && <span>📁 {story.category}</span>}
-                          {story.link_url && <span>🔗 Has Link</span>}
-                          {story.video_url && <span>📹 Has Video</span>}
-                          <span>📅 {new Date(story.createdAt).toLocaleDateString()}</span>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-lg">{story.title}</h3>
+                          {story.status === 'approved' && <span className="bg-green-100 text-green-700 px-2 py-1 text-xs rounded">✅ Approved</span>}
+                          {story.status === 'pending' && <span className="bg-yellow-100 text-yellow-700 px-2 py-1 text-xs rounded">⏳ Pending</span>}
                         </div>
+                        <p className="text-gray-600 text-sm">{story.excerpt}</p>
                       </div>
-                      <div className="flex gap-2 ml-4">
-                        <button
-                          onClick={() => handleDeleteStory(story.id)}
-                          className="btn-ghost px-3 py-2 text-red-600 hover:bg-red-50"
-                        >
-                          🗑️ Delete
-                        </button>
+                      <div className="flex gap-2">
+                        <button onClick={() => setEditingStory(story)} className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm">Edit</button>
+                        <button onClick={() => deleteStory(story.id)} className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-sm">Delete</button>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                ))
+              )}
+            </div>
           </div>
         )}
 
-        {/* Create Story Tab */}
-        {tab === 'create-story' && (
-          <div className="p-6">
-            <h2 className="text-2xl font-semibold mb-6">Create New Story</h2>
-            <form onSubmit={handleCreateStory} className="space-y-4 max-w-2xl">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Story Title *
-                </label>
-                <input
-                  type="text"
-                  value={newStory.title}
-                  onChange={(e) => setNewStory({ ...newStory, title: e.target.value })}
-                  placeholder="e.g., How I Passed My Road Test"
-                  className="input"
-                  required
-                />
-              </div>
+        {/* ADS TAB */}
+        {activeTab === 'ads' && (
+          <div>
+            <button onClick={saveAllAds} className="bg-green-600 text-white px-6 py-2 rounded font-bold hover:bg-green-700 mb-6">💾 Save All Ads</button>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category
-                </label>
-                <select
-                  value={newStory.category}
-                  onChange={(e) => setNewStory({ ...newStory, category: e.target.value })}
-                  className="input"
-                >
-                  <option>Inspirational Stories</option>
-                  <option>Road Test Tips</option>
-                  <option>Parking & Maneuvers</option>
-                  <option>Lesson Plans</option>
-                  <option>Checklists</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Excerpt (Short Summary)
-                </label>
-                <input
-                  type="text"
-                  value={newStory.excerpt}
-                  onChange={(e) => setNewStory({ ...newStory, excerpt: e.target.value })}
-                  placeholder="Brief summary of the story..."
-                  className="input"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Full Story Content *
-                </label>
-                <textarea
-                  value={newStory.content}
-                  onChange={(e) => setNewStory({ ...newStory, content: e.target.value })}
-                  placeholder="Write your full story here..."
-                  className="textarea"
-                  rows={8}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  YouTube Video URL (Optional)
-                </label>
-                <input
-                  type="url"
-                  value={newStory.video_url}
-                  onChange={(e) => setNewStory({ ...newStory, video_url: e.target.value })}
-                  placeholder="e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-                  className="input"
-                />
-                <p className="text-xs text-gray-500 mt-1">Paste full YouTube video URL</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Useful Link URL (Optional)
-                </label>
-                <input
-                  type="url"
-                  value={newStory.link_url}
-                  onChange={(e) => setNewStory({ ...newStory, link_url: e.target.value })}
-                  placeholder="e.g., https://example.com"
-                  className="input"
-                />
-                <p className="text-xs text-gray-500 mt-1">Link to related resource or website</p>
-              </div>
-
-              <button type="submit" disabled={loading} className="btn">
-                {loading ? 'Publishing...' : '✓ Publish Story'}
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* Ads Tab */}
-        {tab === 'ads' && (
-          <div className="p-6">
-            <h2 className="text-2xl font-semibold mb-6">Manage Advertisements (3 Slots)</h2>
-
-            {editingAd && (
-              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h3 className="font-semibold mb-4">Editing Ad #{editingAd.id}</h3>
-                <form onSubmit={handleSaveAd} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Ad Title
+            <div className="space-y-6">
+              {ads.map((ad, index) => (
+                <div key={ad.id} className={`bg-white p-6 rounded-lg shadow border-2 ${[1,2,3].includes(parseInt(ad.id)) ? 'border-blue-300' : [4,5,6].includes(parseInt(ad.id)) ? 'border-purple-300' : 'border-orange-300'}`}>
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="font-bold text-lg">Ad #{ad.id} - Page {[1,2,3].includes(parseInt(ad.id)) ? 'Home' : [4,5,6].includes(parseInt(ad.id)) ? 'About' : 'Contact'}</h3>
+                      <p className="text-gray-500 text-sm">{ad.restaurant_name}</p>
+                    </div>
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" checked={ad.is_active} onChange={() => toggleAdActive(ad.id)} className="w-4 h-4" />
+                      <span className="text-sm font-bold">{ad.is_active ? '✅ Active' : '⭕ Inactive'}</span>
                     </label>
-                    <input
-                      type="text"
-                      value={adForm.title}
-                      onChange={(e) => setAdForm({ ...adForm, title: e.target.value })}
-                      placeholder="e.g., Learn to Drive Safe"
-                      className="input"
-                      required
-                    />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Description
-                    </label>
-                    <textarea
-                      value={adForm.description}
-                      onChange={(e) => setAdForm({ ...adForm, description: e.target.value })}
-                      placeholder="Ad description..."
-                      className="textarea"
-                      rows={3}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Button Link URL
-                    </label>
-                    <input
-                      type="url"
-                      value={adForm.link_url}
-                      onChange={(e) => setAdForm({ ...adForm, link_url: e.target.value })}
-                      placeholder="https://example.com"
-                      className="input"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Button Text
-                    </label>
-                    <input
-                      type="text"
-                      value={adForm.button_text}
-                      onChange={(e) => setAdForm({ ...adForm, button_text: e.target.value })}
-                      placeholder="Learn More"
-                      className="input"
-                    />
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button type="submit" className="btn">
-                      ✓ Save Ad
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditingAd(null)}
-                      className="btn-ghost"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-
-            <div className="grid md:grid-cols-3 gap-6">
-              {ads.map(ad => (
-                <div key={ad.id} className="card p-4 border-2 border-gray-200">
-                  <div className="text-center mb-4">
-                    <p className="text-sm font-medium text-gray-500">Ad Slot #{ad.id}</p>
-                  </div>
-
-                  {ad.title ? (
-                    <>
-                      <h3 className="font-semibold mb-2">{ad.title}</h3>
-                      <p className="text-sm text-gray-600 mb-3">{ad.description}</p>
-                      <div className="flex items-center justify-between mb-4">
-                        <span className={`text-xs px-2 py-1 rounded ${
-                          ad.is_active
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {ad.is_active ? '✓ Active' : 'Paused'}
-                        </span>
+                  {editingAd?.id === ad.id ? (
+                    <div className="space-y-4">
+                      <input type="text" placeholder="Restaurant Name" value={editingAd.restaurant_name} onChange={(e) => setEditingAd({ ...editingAd, restaurant_name: e.target.value })} className="w-full border border-gray-300 p-2 rounded" />
+                      <input type="text" placeholder="Menu Link URL" value={editingAd.menu_link} onChange={(e) => setEditingAd({ ...editingAd, menu_link: e.target.value })} className="w-full border border-gray-300 p-2 rounded" />
+                      <input type="text" placeholder="Address" value={editingAd.address} onChange={(e) => setEditingAd({ ...editingAd, address: e.target.value })} className="w-full border border-gray-300 p-2 rounded" />
+                      <input type="text" placeholder="Special Offer" value={editingAd.offer} onChange={(e) => setEditingAd({ ...editingAd, offer: e.target.value })} className="w-full border border-gray-300 p-2 rounded" />
+                      <textarea placeholder="Content/Description" value={editingAd.content} onChange={(e) => setEditingAd({ ...editingAd, content: e.target.value })} className="w-full border border-gray-300 p-2 rounded" rows={3} />
+                      <div className="flex gap-2">
+                        <button onClick={() => saveAd(editingAd)} className="bg-green-600 text-white px-4 py-2 rounded font-bold hover:bg-green-700">Save</button>
+                        <button onClick={() => setEditingAd(null)} className="bg-gray-400 text-white px-4 py-2 rounded font-bold hover:bg-gray-500">Cancel</button>
                       </div>
-
-                      <div className="space-y-2">
-                        <button
-                          onClick={() => toggleAd(ad.id)}
-                          className="btn-ghost w-full text-sm py-2"
-                        >
-                          {ad.is_active ? '⏸️ Pause' : '▶️ Activate'}
-                        </button>
-                        <button
-                          onClick={() => {
-                            setEditingAd(ad)
-                            setAdForm({
-                              title: ad.title,
-                              description: ad.description,
-                              link_url: ad.link_url,
-                              button_text: ad.button_text,
-                            })
-                          }}
-                          className="btn-ghost w-full text-sm py-2"
-                        >
-                          ✏️ Edit
-                        </button>
-                        <button
-                          onClick={() => handleClearAd(ad.id)}
-                          className="btn-ghost w-full text-sm py-2 text-red-600 hover:bg-red-50"
-                        >
-                          🗑️ Clear
-                        </button>
-                      </div>
-                    </>
+                    </div>
                   ) : (
-                    <>
-                      <p className="text-sm text-gray-500 text-center mb-4">Empty ad slot</p>
-                      <button
-                        onClick={() => {
-                          setEditingAd(ad)
-                          setAdForm({ title: '', description: '', link_url: '', button_text: 'Learn More' })
-                        }}
-                        className="btn w-full text-sm py-2 justify-center"
-                      >
-                        ➕ Add Ad
-                      </button>
-                    </>
+                    <div className="space-y-3 text-sm">
+                      <p><span className="font-bold">Restaurant:</span> {ad.restaurant_name}</p>
+                      <p><span className="font-bold">Offer:</span> {ad.offer}</p>
+                      <p><span className="font-bold">Address:</span> {ad.address}</p>
+                      <p><span className="font-bold">Content:</span> {ad.content}</p>
+                      <button onClick={() => setEditingAd(ad)} className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700 w-full">Edit Ad</button>
+                    </div>
                   )}
                 </div>
               ))}
@@ -524,30 +262,6 @@ export default function CMS() {
           </div>
         )}
       </div>
-
-      {/* Quick Stats */}
-      <div className="grid md:grid-cols-4 gap-4">
-        <div className="card p-6">
-          <p className="text-gray-600 text-sm">Total Stories</p>
-          <p className="text-3xl font-bold text-brand-600">{stories.length}</p>
-        </div>
-        <div className="card p-6">
-          <p className="text-gray-600 text-sm">Total Views</p>
-          <p className="text-3xl font-bold text-brand-600">
-            {stories.reduce((sum, s) => sum + s.views, 0)}
-          </p>
-        </div>
-        <div className="card p-6">
-          <p className="text-gray-600 text-sm">Stories with Videos</p>
-          <p className="text-3xl font-bold text-brand-600">
-            {stories.filter(s => s.video_url).length}
-          </p>
-        </div>
-        <div className="card p-6">
-          <p className="text-gray-600 text-sm">Active Ads</p>
-          <p className="text-3xl font-bold text-brand-600">{ads.filter(a => a.is_active).length}/3</p>
-        </div>
-      </div>
-    </main>
+    </div>
   )
 }

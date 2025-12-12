@@ -1,332 +1,362 @@
 import { useState } from 'react'
-import { supabase } from '../lib/supabase'
 import { useAuth } from '../auth'
+
+type ContactMessage = {
+  id: string
+  name: string
+  email: string
+  type: 'feedback' | 'inquiry' | 'advertise'
+  subject: string
+  message: string
+  phone?: string
+  business_name?: string
+  timestamp: string
+}
+
+type AdvertiseSubmission = {
+  id: string
+  business_name: string
+  email: string
+  phone: string
+  message: string
+  timestamp: string
+}
 
 export default function Contact() {
   const { user } = useAuth()
-  const [tab, setTab] = useState<'contact' | 'story'>('story')
+  const [activeTab, setActiveTab] = useState<'contact' | 'advertise'>('contact')
   
-  const [contact, setContact] = useState({ name: '', email: '', subject: '', message: '' })
-  const [contactSent, setContactSent] = useState(false)
-  const [contactError, setContactError] = useState('')
-
-  const [story, setStory] = useState({
-    title: '',
-    content: '',
-    category: 'Inspirational Stories',
-    author_name: user?.name || '',
-    author_email: user?.email || '',
+  // Contact form state
+  const [contactForm, setContactForm] = useState({
+    name: '',
+    email: '',
+    type: 'feedback' as 'feedback' | 'inquiry' | 'advertise',
+    subject: '',
+    message: '',
   })
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState('')
-  const [videoUrl, setVideoUrl] = useState('')
-  const [storySent, setStorySent] = useState(false)
-  const [storyError, setStoryError] = useState('')
-  const [submitting, setSubmitting] = useState(false)
 
-  const submitContact = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!contact.name || !contact.email || !contact.message) {
-      setContactError('Please fill all required fields')
-      return
-    }
-    setContactSent(true)
-    setContactError('')
-  }
+  // Advertise form state
+  const [advertiseForm, setAdvertiseForm] = useState({
+    business_name: '',
+    email: '',
+    phone: '',
+    message: '',
+  })
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    if (file.size > 5 * 1024 * 1024) {
-      setStoryError('Image must be less than 5MB')
-      return
-    }
-
-    setImageFile(file)
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string)
-    }
-    reader.readAsDataURL(file)
-  }
-
-  const submitStory = async (e: React.FormEvent) => {
+  const handleContactSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!story.title || !story.content) {
-      setStoryError('Please fill in title and content')
-      return
+    const message: ContactMessage = {
+      id: Date.now().toString(),
+      name: contactForm.name,
+      email: contactForm.email,
+      type: contactForm.type,
+      subject: contactForm.subject,
+      message: contactForm.message,
+      timestamp: new Date().toISOString(),
     }
 
+    // Save to localStorage
+    const existing = localStorage.getItem('contact_messages')
+    const messages = existing ? JSON.parse(existing) : []
+    messages.push(message)
+    localStorage.setItem('contact_messages', JSON.stringify(messages))
+
+    alert(`✅ Thank you! Your ${contactForm.type} has been sent to our team.`)
+    setContactForm({
+      name: '',
+      email: '',
+      type: 'feedback',
+      subject: '',
+      message: '',
+    })
+  }
+
+  const handleAdvertiseSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
     
-
-    setSubmitting(true)
-    setStoryError('')
-
-    try {
-      let imageUrl = null
-
-      if (imageFile) {
-        const fileExt = imageFile.name.split('.').pop()
-        const fileName = `${Math.random()}.${fileExt}`
-        const filePath = `story-images/${fileName}`
-
-        const { error: uploadError } = await supabase.storage
-          .from('stories')
-          .upload(filePath, imageFile)
-
-        if (uploadError) throw uploadError
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('stories')
-          .getPublicUrl(filePath)
-
-        imageUrl = publicUrl
-      }
-
-      const { error } = await supabase.from('submissions').insert([{
-        title: story.title,
-        excerpt: story.content.slice(0, 150) + '...',
-        content: story.content,
-        category: story.category,
-        image_url: imageUrl,
-        video_url: videoUrl || null,
-        author_name: story.author_name || 'Anonymous',
-        author_email: story.author_email,
-        status: 'pending',
-        user_id: user?.id || null,
-      }])
-
-      if (error) throw error
-
-      setStorySent(true)
-      setStory({
-        title: '',
-        content: '',
-        category: 'Inspirational Stories',
-        author_name: user?.name || '',
-        author_email: user?.email || '',
-      })
-      setImageFile(null)
-      setImagePreview('')
-      setVideoUrl('')
-    } catch (error: any) {
-      console.error('Error submitting story:', error)
-      setStoryError(error.message || 'Failed to submit story')
-    } finally {
-      setSubmitting(false)
+    const submission: AdvertiseSubmission = {
+      id: Date.now().toString(),
+      business_name: advertiseForm.business_name,
+      email: advertiseForm.email,
+      phone: advertiseForm.phone,
+      message: advertiseForm.message,
+      timestamp: new Date().toISOString(),
     }
+
+    // Save to localStorage
+    const existing = localStorage.getItem('advertise_submissions')
+    const submissions = existing ? JSON.parse(existing) : []
+    submissions.push(submission)
+    localStorage.setItem('advertise_submissions', JSON.stringify(submissions))
+
+    alert(`✅ Thank you! Your advertising inquiry has been sent. We'll contact you soon at ${advertiseForm.email}`)
+    setAdvertiseForm({
+      business_name: '',
+      email: '',
+      phone: '',
+      message: '',
+    })
   }
 
   return (
-    <main className="container-rt py-12 space-y-10">
-      <section className="card p-8 md:p-10 bg-gradient-to-br from-brand-50 to-white">
-        <h1 className="text-3xl md:text-4xl font-bold mb-3">
-          We'd love to hear from you
-        </h1>
-        <p className="text-gray-700 mb-6">
-          Contact us or share your driving journey to inspire others
+    <div className="min-h-screen bg-gray-50">
+      <div className="container-rt py-12">
+        <h1 className="text-4xl font-bold mb-4">📞 Contact Us</h1>
+        <p className="text-gray-600 text-lg mb-12">
+          Have questions? We'd love to hear from you. Get in touch with the RTC Bliss Drive team.
         </p>
-        <div className="flex gap-3">
+
+        {/* Tabs */}
+        <div className="flex gap-4 mb-8 border-b border-gray-300">
           <button
-            onClick={() => setTab('story')}
-            className={tab === 'story' ? 'btn' : 'btn-ghost'}
-          >
-            📝 Share Your Story
-          </button>
-          <button
-            onClick={() => setTab('contact')}
-            className={tab === 'contact' ? 'btn' : 'btn-ghost'}
+            onClick={() => setActiveTab('contact')}
+            className={`px-6 py-3 font-bold ${activeTab === 'contact' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
           >
             💬 Contact Us
           </button>
+          <button
+            onClick={() => setActiveTab('advertise')}
+            className={`px-6 py-3 font-bold ${activeTab === 'advertise' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-600'}`}
+          >
+            🏢 Advertise With Us
+          </button>
         </div>
-      </section>
 
-      {tab === 'story' && (
-        <form onSubmit={submitStory} className="card p-6 space-y-6">
-          <div>
-            <h2 className="text-2xl font-semibold mb-2">Share Your Success Story</h2>
-            <p className="text-sm text-gray-600">
-              Your story will be reviewed by our admin team before publishing
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium block mb-1">Your Name</label>
-              <input
-                className="input"
-                value={story.author_name}
-                onChange={e => setStory({ ...story, author_name: e.target.value })}
-                placeholder="Enter your name"
-              />
+        {/* CONTACT TAB */}
+        {activeTab === 'contact' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+            {/* Contact Form */}
+            <div className="bg-white p-8 rounded-lg shadow">
+              <h2 className="text-2xl font-bold mb-6">Send us a Message</h2>
+              <form onSubmit={handleContactSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={contactForm.name}
+                    onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
+                    className="w-full border border-gray-300 p-3 rounded"
+                    placeholder="Your name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Email</label>
+                  <input
+                    type="email"
+                    required
+                    value={contactForm.email}
+                    onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
+                    className="w-full border border-gray-300 p-3 rounded"
+                    placeholder="your@email.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Type</label>
+                  <select
+                    value={contactForm.type}
+                    onChange={(e) => setContactForm({ ...contactForm, type: e.target.value as any })}
+                    className="w-full border border-gray-300 p-3 rounded"
+                  >
+                    <option value="feedback">📝 Feedback</option>
+                    <option value="inquiry">❓ General Inquiry</option>
+                    <option value="advertise">🎯 Advertising Question</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Subject</label>
+                  <input
+                    type="text"
+                    required
+                    value={contactForm.subject}
+                    onChange={(e) => setContactForm({ ...contactForm, subject: e.target.value })}
+                    className="w-full border border-gray-300 p-3 rounded"
+                    placeholder="Message subject"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Message</label>
+                  <textarea
+                    required
+                    value={contactForm.message}
+                    onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
+                    className="w-full border border-gray-300 p-3 rounded"
+                    rows={5}
+                    placeholder="Your message..."
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full bg-blue-600 text-white py-3 rounded font-bold hover:bg-blue-700 transition"
+                >
+                  Send Message
+                </button>
+              </form>
             </div>
-            <div>
-              <label className="text-sm font-medium block mb-1">Email</label>
-              <input
-                type="email"
-                className="input"
-                value={story.author_email}
-                onChange={e => setStory({ ...story, author_email: e.target.value })}
-                placeholder="your@email.com"
-              />
-            </div>
-          </div>
 
-          <div>
-            <label className="text-sm font-medium block mb-1">Story Title *</label>
-            <input
-              className="input"
-              value={story.title}
-              onChange={e => setStory({ ...story, title: e.target.value })}
-              placeholder="E.g., How I passed my road test on first try"
-              required
-            />
-          </div>
+            {/* Contact Info */}
+            <div className="space-y-8">
+              <div className="bg-white p-8 rounded-lg shadow">
+                <h3 className="text-2xl font-bold mb-6">Get in Touch</h3>
+                
+                <div className="space-y-6">
+                  <div>
+                    <h4 className="font-bold text-lg text-gray-900 mb-2">📞 Phone</h4>
+                    <p className="text-gray-600">+1 (555) 123-4567</p>
+                    <p className="text-gray-500 text-sm">Available Mon-Fri, 9am-5pm EST</p>
+                  </div>
 
-          <div>
-            <label className="text-sm font-medium block mb-1">Category</label>
-            <select
-              className="input"
-              value={story.category}
-              onChange={e => setStory({ ...story, category: e.target.value })}
-            >
-              <option>Inspirational Stories</option>
-              <option>Road Test Tips</option>
-              <option>Parking & Maneuvers</option>
-              <option>Lesson Plans</option>
-              <option>Checklists</option>
-            </select>
-          </div>
+                  <div>
+                    <h4 className="font-bold text-lg text-gray-900 mb-2">📧 Email</h4>
+                    <p className="text-gray-600">rtcblissdrive@gmail.com</p>
+                    <p className="text-gray-500 text-sm">We'll respond within 24 hours</p>
+                  </div>
 
-          <div>
-            <label className="text-sm font-medium block mb-1">Your Story *</label>
-            <textarea
-              className="textarea"
-              rows={8}
-              value={story.content}
-              onChange={e => setStory({ ...story, content: e.target.value })}
-              placeholder="Share your journey, tips, and what helped you succeed..."
-              required
-            />
-          </div>
+                  <div>
+                    <h4 className="font-bold text-lg text-gray-900 mb-2">📍 Office</h4>
+                    <p className="text-gray-600">123 Business Ave</p>
+                    <p className="text-gray-600">Suite 100</p>
+                    <p className="text-gray-600">Tampa, FL 33617</p>
+                  </div>
 
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium block mb-1">Upload Image (optional)</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="input"
-              />
-              {imagePreview && (
-                <img
-                  src={imagePreview}
-                  alt="Preview"
-                  className="mt-2 w-full h-40 object-cover rounded-lg"
-                />
-              )}
-            </div>
-            <div>
-              <label className="text-sm font-medium block mb-1">Video URL (optional)</label>
-              <input
-                type="url"
-                className="input"
-                value={videoUrl}
-                onChange={e => setVideoUrl(e.target.value)}
-                placeholder="https://youtube.com/watch?v=..."
-              />
-            </div>
-          </div>
-
-          {storyError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              {storyError}
-            </div>
-          )}
-
-          {storySent ? (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
-              ✅ Thank you! Your story has been submitted and is awaiting admin approval.
-            </div>
-          ) : (
-            <button
-              type="submit"
-              disabled={submitting}
-              className="btn disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {submitting ? 'Submitting...' : '📤 Submit Story'}
-            </button>
-          )}
-
-          
-        </form>
-      )}
-
-      {tab === 'contact' && (
-        <form onSubmit={submitContact} className="card p-6 space-y-6">
-          <h2 className="text-2xl font-semibold">Send us a message</h2>
-
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium block mb-1">Name *</label>
-              <input
-                className="input"
-                value={contact.name}
-                onChange={e => setContact({ ...contact, name: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium block mb-1">Email *</label>
-              <input
-                type="email"
-                className="input"
-                value={contact.email}
-                onChange={e => setContact({ ...contact, email: e.target.value })}
-                required
-              />
+                  <div>
+                    <h4 className="font-bold text-lg text-gray-900 mb-2">⏰ Hours</h4>
+                    <p className="text-gray-600">Monday - Friday: 9am - 6pm EST</p>
+                    <p className="text-gray-600">Saturday: 10am - 4pm EST</p>
+                    <p className="text-gray-600">Sunday: Closed</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
+        )}
 
-          <div>
-            <label className="text-sm font-medium block mb-1">Subject</label>
-            <input
-              className="input"
-              value={contact.subject}
-              onChange={e => setContact({ ...contact, subject: e.target.value })}
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium block mb-1">Message *</label>
-            <textarea
-              className="textarea"
-              rows={6}
-              value={contact.message}
-              onChange={e => setContact({ ...contact, message: e.target.value })}
-              required
-            />
-          </div>
-
-          {contactError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              {contactError}
+        {/* ADVERTISE TAB */}
+        {activeTab === 'advertise' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+            {/* Advertise Form */}
+            <div className="bg-white p-8 rounded-lg shadow">
+              <h2 className="text-2xl font-bold mb-2">Become a Partner</h2>
+              <p className="text-gray-600 mb-6">
+                Fill out the form below and our team will contact you to discuss advertising opportunities.
+              </p>
+              
+              <form onSubmit={handleAdvertiseSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Business Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={advertiseForm.business_name}
+                    onChange={(e) => setAdvertiseForm({ ...advertiseForm, business_name: e.target.value })}
+                    className="w-full border border-gray-300 p-3 rounded"
+                    placeholder="Your restaurant/business name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Email</label>
+                  <input
+                    type="email"
+                    required
+                    value={advertiseForm.email}
+                    onChange={(e) => setAdvertiseForm({ ...advertiseForm, email: e.target.value })}
+                    className="w-full border border-gray-300 p-3 rounded"
+                    placeholder="business@email.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Phone</label>
+                  <input
+                    type="tel"
+                    required
+                    value={advertiseForm.phone}
+                    onChange={(e) => setAdvertiseForm({ ...advertiseForm, phone: e.target.value })}
+                    className="w-full border border-gray-300 p-3 rounded"
+                    placeholder="+1 (555) 123-4567"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Tell us about your business</label>
+                  <textarea
+                    required
+                    value={advertiseForm.message}
+                    onChange={(e) => setAdvertiseForm({ ...advertiseForm, message: e.target.value })}
+                    className="w-full border border-gray-300 p-3 rounded"
+                    rows={5}
+                    placeholder="Describe your business and why you'd like to advertise with us..."
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full bg-green-600 text-white py-3 rounded font-bold hover:bg-green-700 transition"
+                >
+                  Submit Advertising Inquiry
+                </button>
+              </form>
             </div>
-          )}
 
-          {contactSent ? (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
-              ✅ Message sent! We'll get back to you soon.
+            {/* Advertise Benefits */}
+            <div className="space-y-8">
+              <div className="bg-white p-8 rounded-lg shadow">
+                <h3 className="text-2xl font-bold mb-6">Why Advertise With Us?</h3>
+                
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">👥</span>
+                    <div>
+                      <h4 className="font-bold text-gray-900">Reach Driving Enthusiasts</h4>
+                      <p className="text-gray-600 text-sm">Target new drivers and test takers in your area</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">📍</span>
+                    <div>
+                      <h4 className="font-bold text-gray-900">Local Visibility</h4>
+                      <p className="text-gray-600 text-sm">Featured prominently on our platform with location details</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">📱</span>
+                    <div>
+                      <h4 className="font-bold text-gray-900">Digital Presence</h4>
+                      <p className="text-gray-600 text-sm">Include menu links and special offers</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">💼</span>
+                    <div>
+                      <h4 className="font-bold text-gray-900">Flexible Packages</h4>
+                      <p className="text-gray-600 text-sm">Customizable advertising solutions for your budget</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">📊</span>
+                    <div>
+                      <h4 className="font-bold text-gray-900">Analytics</h4>
+                      <p className="text-gray-600 text-sm">Track engagement and see how many people visit your ad</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 p-8 rounded-lg">
+                <h3 className="font-bold text-lg text-blue-900 mb-3">📧 Questions?</h3>
+                <p className="text-blue-800 text-sm mb-4">
+                  Email us at <span className="font-bold">partners@rtcblissdrive.com</span> or call <span className="font-bold">+1 (555) 456-7890</span>
+                </p>
+                <p className="text-blue-800 text-sm">
+                  We look forward to partnering with you!
+                </p>
+              </div>
             </div>
-          ) : (
-            <button type="submit" className="btn">Send Message</button>
-          )}
-        </form>
-      )}
-    </main>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }

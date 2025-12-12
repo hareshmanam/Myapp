@@ -1,113 +1,90 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 
 export type Role = 'guest' | 'user' | 'admin'
-export type User = { 
+
+export interface User {
   id: string
   email: string
-  name: string
-  role: Role 
+  role: Role
 }
 
-type AuthCtx = {
+interface AuthContextType {
   user: User | null
-  loading: boolean
-  login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>
-  signup: (email: string, password: string, name: string) => Promise<{ ok: boolean; error?: string }>
+  login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
 }
 
-const Ctx = createContext<AuthCtx | null>(null)
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
 
+  // Generate proper UUID
+  function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0
+      const v = c === 'x' ? r : (r & 0x3 | 0x8)
+      return v.toString(16)
+    })
+  }
+
+  // Load user on mount
   useEffect(() => {
     const stored = localStorage.getItem('rtc_user')
     if (stored) {
       try {
         setUser(JSON.parse(stored))
       } catch {
-        localStorage.removeItem('rtc_user')
+        setUser(null)
       }
     }
-    setLoading(false)
   }, [])
 
   async function login(email: string, password: string) {
-    try {
-      setLoading(true)
-      
-      if (!email || !password) {
-        return { ok: false, error: 'Email and password required' }
-      }
-      if (password.length < 6) {
-        return { ok: false, error: 'Password 6+ chars' }
-      }
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 800))
 
-      await new Promise(r => setTimeout(r, 800))
+    email = email.toLowerCase().trim()
 
-      const userData: User = {
-        id: 'u' + Date.now(),
-        email: email,
-        name: email.split('@')[0],
-        role: email.toLowerCase() === 'admin@rtc.com' ? 'admin' : 'user',
-      }
-      
-      setUser(userData)
-      localStorage.setItem('rtc_user', JSON.stringify(userData))
-      return { ok: true }
-    } catch (error: any) {
-      return { ok: false, error: error.message }
-    } finally {
-      setLoading(false)
+    // Validate input
+    if (!email) throw new Error('Email required')
+    if (!password || password.length < 6) throw new Error('Password must be 6+ characters')
+
+    // Check if admin
+    const isAdmin = email === 'admin@rtc.com'
+
+    // Create or get user with proper UUID
+    const userId = generateUUID()  // Generate proper UUID instead of timestamp
+    
+    const user: User = {
+      id: userId,
+      email: email,
+      role: isAdmin ? 'admin' : 'user'
     }
-  }
 
-  async function signup(email: string, password: string, name: string) {
-    try {
-      setLoading(true)
-      
-      if (!email || !password || !name) {
-        return { ok: false, error: 'All fields required' }
-      }
-      if (password.length < 6) {
-        return { ok: false, error: 'Password 6+ chars' }
-      }
+    // Store in localStorage
+    localStorage.setItem('rtc_user', JSON.stringify(user))
+    setUser(user)
 
-      await new Promise(r => setTimeout(r, 800))
-
-      const userData: User = {
-        id: 'u' + Date.now(),
-        email: email,
-        name: name,
-        role: email.toLowerCase() === 'admin@rtc.com' ? 'admin' : 'user',
-      }
-      
-      setUser(userData)
-      localStorage.setItem('rtc_user', JSON.stringify(userData))
-      return { ok: true }
-    } catch (error: any) {
-      return { ok: false, error: error.message }
-    } finally {
-      setLoading(false)
-    }
+    console.log('✅ Login successful:', { email, role: user.role })
   }
 
   async function logout() {
-    setUser(null)
     localStorage.removeItem('rtc_user')
+    setUser(null)
   }
 
   return (
-    <Ctx.Provider value={{ user, loading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, login, logout }}>
       {children}
-    </Ctx.Provider>
+    </AuthContext.Provider>
   )
 }
 
 export function useAuth() {
-  const c = useContext(Ctx)
-  if (!c) throw new Error('useAuth error')
-  return c
+  const context = useContext(AuthContext)
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider')
+  }
+  return context
 }

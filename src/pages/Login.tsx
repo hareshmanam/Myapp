@@ -1,149 +1,104 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth'
 
 export default function Login() {
   const navigate = useNavigate()
-  const { login, signup } = useAuth()
-  const [isSignUp, setIsSignUp] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const { user, login } = useAuth()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-  })
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value })
-  }
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/')
+    }
+  }, [user, navigate])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    setSuccess('')
     setLoading(true)
 
     try {
-      let result
-
-      if (isSignUp) {
-        result = await signup(formData.email, formData.password, formData.name)
-      } else {
-        result = await login(formData.email, formData.password)
-      }
-
-      if (result.ok) {
-        setSuccess(`Success! Redirecting...`)
-        setTimeout(() => navigate('/'), 1500)
-      } else {
-        setError(result.error || 'Auth failed')
-      }
+      await login(email, password)
+      // Login was successful, useAuth context will update and trigger redirect above
     } catch (err: any) {
-      setError(err.message || 'Error')
-    } finally {
+      setError(err.message || 'Login failed')
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-brand-50 flex items-center justify-center py-12 px-4">
-      <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
-        <h1 className="text-3xl font-bold text-center mb-8 text-brand-600">
-          {isSignUp ? 'Create Account' : 'Sign In'}
-        </h1>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center py-12 px-4">
+      <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
+        <h1 className="text-3xl font-bold text-blue-600 mb-6 text-center">Sign In</h1>
 
         {error && (
-          <div className="mb-4 p-4 bg-red-100 text-red-700 rounded">
+          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded mb-6 text-sm">
             {error}
           </div>
         )}
 
-        {success && (
-          <div className="mb-4 p-4 bg-green-100 text-green-700 rounded">
-            {success}
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="space-y-4">
-          {isSignUp && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Name
-              </label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                placeholder="Your name"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500"
-              />
-            </div>
-          )}
-
+          {/* Email */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-bold text-gray-700 mb-2">
               Email
             </label>
             <input
-              type="text"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="admin@rtc.com"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="your@email.com"
+              className="w-full border border-gray-300 p-3 rounded focus:outline-none focus:border-blue-500"
+              required
             />
           </div>
 
+          {/* Password */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-bold text-gray-700 mb-2">
               Password
             </label>
             <input
               type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="6+ characters"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full border border-gray-300 p-3 rounded focus:outline-none focus:border-blue-500"
+              required
             />
           </div>
 
+          {/* Sign In Button */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-brand-600 text-white py-2 rounded-lg font-semibold hover:bg-brand-700 disabled:opacity-50"
+            className="w-full bg-blue-600 text-white py-3 rounded font-bold hover:bg-blue-700 disabled:bg-gray-400 transition"
           >
-            {loading ? 'Loading...' : isSignUp ? 'Create Account' : 'Sign In'}
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 
+        {/* Sign Up Link */}
         <div className="mt-6 text-center">
-          <p className="text-gray-600 mb-4">
-            {isSignUp ? 'Already have an account?' : "Don't have an account?"}
-          </p>
+          <p className="text-gray-600 text-sm">Don't have an account?</p>
           <button
-            type="button"
-            onClick={() => {
-              setIsSignUp(!isSignUp)
-              setError('')
-              setSuccess('')
-              setFormData({ name: '', email: '', password: '' })
-            }}
-            className="text-brand-600 hover:text-brand-700 font-semibold"
+            onClick={() => navigate('/login')}
+            className="text-blue-600 font-bold hover:text-blue-700"
           >
-            {isSignUp ? 'Sign In' : 'Sign Up'}
+            Sign Up
           </button>
         </div>
 
-        <div className="mt-8 pt-6 border-t">
-          <p className="text-xs text-gray-600 space-y-1">
-            <div>Admin: admin@rtc.com</div>
-            <div>Password: admin123456</div>
-          </p>
+        {/* Demo Credentials */}
+        <div className="mt-8 bg-blue-50 p-4 rounded text-xs text-gray-600">
+          <p className="font-bold mb-2">Demo Credentials:</p>
+          <p>Admin: admin@rtc.com</p>
+          <p>Password: admin123456</p>
         </div>
       </div>
     </div>
